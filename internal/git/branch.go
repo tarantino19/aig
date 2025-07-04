@@ -29,6 +29,10 @@ func ExtractCommitDetails(branchName string) (string, string) {
 	branchName = strings.ToLower(branchName)
 	var commitType, ticketNumber string
 
+	// Remove date patterns (YYYYMMDD) from branch name
+	dateRegex := regexp.MustCompile(`\d{8}`)
+	branchName = dateRegex.ReplaceAllString(branchName, "")
+
 	// Extract ticket number
 	re := regexp.MustCompile(`(\d{4,5})`)
 	matches := re.FindStringSubmatch(branchName)

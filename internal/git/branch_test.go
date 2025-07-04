@@ -18,6 +18,7 @@ func TestExtractCommitDetails(t *testing.T) {
 		{"release/v1.0", "", ""},
 		{"no-ticket-feat", "feat", ""},
 		{"12345-fix-something", "fix", "12345"},
+		{"feature/1234-20250620-new-login", "feat", "1234"},
 	}
 
 	for _, tt := range tests {
