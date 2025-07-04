@@ -73,6 +73,18 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Get current branch name
+	branchName, err := git.GetCurrentBranch()
+	if err != nil {
+		ui.ShowWarning("Could not get current branch name, proceeding without it.")
+	}
+
+	// Extract commit details from branch name
+	extractedType, ticketNumber := git.ExtractCommitDetails(branchName)
+	if extractedType != "" {
+		commitType = extractedType
+	}
+
 	// Get staged changes
 	diff, err := git.GetStagedDiff()
 	if err != nil {
@@ -153,6 +165,10 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		} else {
 			return fmt.Errorf("failed to generate commit message: %w", err)
 		}
+	}
+
+	if ticketNumber != "" {
+		commitMsg.Subject = fmt.Sprintf("%s-%s", ticketNumber, commitMsg.Subject)
 	}
 
 	// Display the generated commit message

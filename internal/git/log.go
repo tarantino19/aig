@@ -56,20 +56,7 @@ func GetCommits(opts CommitOptions) ([]Commit, error) {
 }
 
 // GetCurrentBranch returns the current git branch name
-func GetCurrentBranch() (string, error) {
-	cmd := exec.Command("git", "branch", "--show-current")
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("git branch failed: %w, stderr: %s", err, stderr.String())
-	}
-	
-	return strings.TrimSpace(out.String()), nil
-}
+
 
 func parseCommits(output string) []Commit {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
