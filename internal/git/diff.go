@@ -49,7 +49,39 @@ func GetCommitDiff(commitHash string) (string, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("git show failed: %w, stderr: %s", err, stderr.String())
+		return "", fmt.Errorf("git show %s failed: %w, stderr: %s", commitHash, err, stderr.String())
+	}
+
+	return strings.TrimSpace(out.String()), nil
+}
+
+// GetCommitRangeDiff returns the diff of a specific commit range
+func GetCommitRangeDiff(commitRange string) (string, error) {
+	cmd := exec.Command("git", "diff", commitRange)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("git diff %s failed: %w, stderr: %s", commitRange, err, stderr.String())
+	}
+
+	return strings.TrimSpace(out.String()), nil
+}
+
+// GetBranchDiff returns the diff between the current branch and a specified branch
+func GetBranchDiff(branchName string) (string, error) {
+	cmd := exec.Command("git", "diff", branchName)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("git diff %s failed: %w, stderr: %s", branchName, err, stderr.String())
 	}
 
 	return strings.TrimSpace(out.String()), nil

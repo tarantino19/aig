@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tarantino19/aig/internal/ai"
 )
 
 // ShowDryRun displays what will be committed in dry-run mode
@@ -107,4 +108,54 @@ func RenderBox(title, content string) string {
 	titleRendered := headerStyle.Render(title)
 	contentRendered := boxStyle.Render(content)
 	return fmt.Sprintf("%s\n%s", titleRendered, contentRendered)
+}
+
+// ShowReview displays a formatted code review
+func ShowReview(review *ai.Review) {
+	fmt.Println(headerStyle.Render("Code Review Results Completed"))
+
+	if review.Summary != "" {
+		fmt.Println(mutedStyle.Render("## Summary"))
+		fmt.Println(boxStyle.Render(review.Summary))
+	}
+
+	if len(review.Issues) > 0 {
+		fmt.Println(errorStyle.Render("## Issues"))
+		for _, issue := range review.Issues {
+			fmt.Printf("  %s [Severity: %s, Type: %s] %s\n", errorStyle.Render("•"), issue.Severity, issue.Type, issue.Description)
+			if issue.Suggestion != "" {
+				fmt.Printf("    %s Suggestion: %s\n", mutedStyle.Render("↳"), issue.Suggestion)
+			}
+		}
+	}
+
+	if len(review.Suggestions) > 0 {
+		fmt.Println(infoStyle.Render("## Suggestions"))
+		for _, suggestion := range review.Suggestions {
+			fmt.Printf("  %s [Type: %s] %s\n", infoStyle.Render("•"), suggestion.Type, suggestion.Description)
+			if suggestion.Example != "" {
+				fmt.Printf("    %s Example: %s\n", mutedStyle.Render("↳"), suggestion.Example)
+			}
+		}
+	}
+
+	if len(review.SecurityRisks) > 0 {
+		fmt.Println(errorStyle.Render("## Security Risks"))
+		for _, risk := range review.SecurityRisks {
+			fmt.Printf("  %s [Severity: %s] %s\n", errorStyle.Render("•"), risk.Severity, risk.Description)
+			if risk.Mitigation != "" {
+				fmt.Printf("    %s Mitigation: %s\n", mutedStyle.Render("↳"), risk.Mitigation)
+			}
+		}
+	}
+
+	if len(review.Performance) > 0 {
+		fmt.Println(warningStyle.Render("## Performance Issues"))
+		for _, perf := range review.Performance {
+			fmt.Printf("  %s [Type: %s] %s (Impact: %s)\n", warningStyle.Render("•"), perf.Type, perf.Description, perf.Impact)
+			if perf.Solution != "" {
+				fmt.Printf("    %s Solution: %s\n", mutedStyle.Render("↳"), perf.Solution)
+			}
+		}
+	}
 } 

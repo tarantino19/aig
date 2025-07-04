@@ -2,8 +2,10 @@ package commands
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
+	"github.com/tarantino19/aig/internal/ai"
 	"github.com/tarantino19/aig/internal/config"
 	"github.com/tarantino19/aig/internal/git"
 	"github.com/tarantino19/aig/internal/ui"
@@ -13,6 +15,7 @@ var (
 	reviewStaged      bool
 	reviewCommit      string
 	reviewRange       string
+	reviewBranch      string
 	reviewFiles       string
 	reviewVerbose     bool
 	reviewSecurity    bool
@@ -33,6 +36,7 @@ potential issues, improvements, and best practices.`,
 	cmd.Flags().BoolVarP(&reviewStaged, "staged", "s", false, "Review staged changes only")
 	cmd.Flags().StringVarP(&reviewCommit, "commit", "c", "", "Review specific commit")
 	cmd.Flags().StringVarP(&reviewRange, "range", "r", "", "Review commit range")
+	cmd.Flags().StringVarP(&reviewBranch, "branch", "b", "", "Review changes against a specific branch")
 	cmd.Flags().StringVarP(&reviewFiles, "files", "f", "", "Review specific files (glob pattern)")
 	cmd.Flags().BoolVarP(&reviewVerbose, "verbose", "v", false, "Detailed review output")
 	cmd.Flags().BoolVar(&reviewSecurity, "security", false, "Focus on security issues")
@@ -58,8 +62,11 @@ func runReview(cmd *cobra.Command, args []string) error {
 		diff, err = git.GetCommitDiff(reviewCommit)
 		ui.ShowInfo(fmt.Sprintf("Reviewing commit %s...", reviewCommit))
 	case reviewRange != "":
-		// TODO: Implement range diff
-		return fmt.Errorf("commit range review not yet implemented")
+		diff, err = git.GetCommitRangeDiff(reviewRange)
+		ui.ShowInfo(fmt.Sprintf("Reviewing commit range %s...", reviewRange))
+	case reviewBranch != "":
+		diff, err = git.GetBranchDiff(reviewBranch)
+		ui.ShowInfo(fmt.Sprintf("Reviewing changes against branch %s...", reviewBranch))
 	default:
 		// Default to unstaged changes
 		diff, err = git.GetDiff()
@@ -79,11 +86,40 @@ func runReview(cmd *cobra.Command, args []string) error {
 		ui.ShowDiff(truncateString(diff, 500))
 	}
 
-	// This will be implemented when we complete the AI integration
-	fmt.Printf("Configuration loaded: %+v\n", cfg)
-	fmt.Printf("Security focus: %v, Performance focus: %v\n", reviewSecurity, reviewPerformance)
-	
-	return fmt.Errorf("AI integration not yet implemented")
+	// Initialize AI provider
+	aiProvider, err := ai.NewProvider(ai.ProviderConfig{
+		Provider:    cfg.AI.Provider,
+		APIKey:      cfg.AI.APIKey,
+		Model:       cfg.AI.Model,
+		Temperature: cfg.AI.Temperature,
+		MaxTokens:   cfg.AI.MaxTokens,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create AI provider: %w", err)
+	}
+	defer func() {
+		if err := aiProvider.Close(); err != nil {
+			log.Printf("Error closing AI provider: %v", err)
+		}
+	}()
+
+	ui.ShowInfo("Sending diff to AI for review...")
+
+	reviewOptions := ai.ReviewOptions{
+		FocusAreas:  cfg.Review.FocusAreas,
+		Verbose:     reviewVerbose,
+		Security:    reviewSecurity,
+		Performance: reviewPerformance,
+	}
+
+	review, err := aiProvider.ReviewCode(cmd.Context(), diff, reviewOptions)
+	if err != nil {
+		return fmt.Errorf("failed to get code review: %w", err)
+	}
+
+	ui.ShowReview(review)
+
+	return nil
 }
 
 func truncateString(s string, maxLen int) string {

@@ -129,8 +129,11 @@ func (g *GeminiProvider) ReviewCode(ctx context.Context, diff string, options Re
 		return nil, fmt.Errorf("no response from Gemini")
 	}
 	
-	text := extractTextFromResponse(resp)
-	
+		text := extractTextFromResponse(resp)
+	fmt.Println("--- Raw AI Response Start ---")
+	fmt.Println(text)
+	fmt.Println("--- Raw AI Response End ---")
+
 	// Parse the review response
 	review := parseReviewResponse(text, options)
 	
@@ -309,73 +312,82 @@ func parseReviewResponse(text string, options ReviewOptions) *Review {
 		SecurityRisks: []SecurityRisk{},
 		Performance:   []PerformanceIssue{},
 	}
-	
-	// Extract summary (usually the first paragraph)
-	paragraphs := strings.Split(text, "\n\n")
-	if len(paragraphs) > 0 {
-		review.Summary = strings.TrimSpace(paragraphs[0])
-	}
-	
-	// Simple parsing - look for common patterns
-	lines := strings.Split(text, "\n")
+
+	sections := make(map[string]string)
 	currentSection := ""
-	
+	lines := strings.Split(text, "\n")
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
-		// Detect section headers
-		if strings.Contains(strings.ToLower(line), "issue") ||
-			strings.Contains(strings.ToLower(line), "problem") ||
-			strings.Contains(strings.ToLower(line), "bug") {
-			currentSection = "issues"
-			continue
+		if strings.HasPrefix(line, "## ") {
+			currentSection = strings.ToLower(strings.TrimPrefix(line, "## "))
+			if currentSection == "security risks" {
+				currentSection = "security"
+			} else if currentSection == "performance issues" {
+				currentSection = "performance"
+			}
+			sections[currentSection] = "" // Initialize section content
+		} else if currentSection != "" {
+			sections[currentSection] += line + "\n"
 		}
-		
-		if strings.Contains(strings.ToLower(line), "suggestion") ||
-			strings.Contains(strings.ToLower(line), "improvement") {
-			currentSection = "suggestions"
-			continue
-		}
-		
-		if strings.Contains(strings.ToLower(line), "security") {
-			currentSection = "security"
-			continue
-		}
-		
-		if strings.Contains(strings.ToLower(line), "performance") {
-			currentSection = "performance"
-			continue
-		}
-		
-		// Parse content based on current section
-		if line != "" && (strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") || strings.HasPrefix(line, "•")) {
-			content := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*"), "•"))
-			
-			switch currentSection {
-			case "issues":
+	}
+
+	if summaryContent, ok := sections["summary"]; ok {
+		review.Summary = strings.TrimSpace(summaryContent)
+	}
+
+	if issuesContent, ok := sections["issues"]; ok {
+		for _, line := range strings.Split(issuesContent, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && (strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") || strings.HasPrefix(line, "•")) {
+				content := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*"), "•"))
 				review.Issues = append(review.Issues, Issue{
-					Severity:    "medium",
-					Type:        "general",
-					Description: content,
-				})
-			case "suggestions":
-				review.Suggestions = append(review.Suggestions, Suggestion{
-					Type:        "general",
-					Description: content,
-				})
-			case "security":
-				review.SecurityRisks = append(review.SecurityRisks, SecurityRisk{
-					Severity:    "medium",
-					Description: content,
-				})
-			case "performance":
-				review.Performance = append(review.Performance, PerformanceIssue{
-					Type:        "general",
+					Severity:    "medium", // Default severity
+					Type:        "general",  // Default type
 					Description: content,
 				})
 			}
 		}
 	}
-	
+
+	if suggestionsContent, ok := sections["suggestions"]; ok {
+		for _, line := range strings.Split(suggestionsContent, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && (strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") || strings.HasPrefix(line, "•")) {
+				content := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*"), "•"))
+				review.Suggestions = append(review.Suggestions, Suggestion{
+					Type:        "general", // Default type
+					Description: content,
+				})
+			}
+		}
+	}
+
+	if securityContent, ok := sections["security risks"]; ok {
+		for _, line := range strings.Split(securityContent, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && (strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") || strings.HasPrefix(line, "•")) {
+				content := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*"), "•"))
+				review.SecurityRisks = append(review.SecurityRisks, SecurityRisk{
+					Severity:    "medium", // Default severity
+					Description: content,
+				})
+			}
+		}
+	}
+
+	if performanceContent, ok := sections["performance issues"]; ok {
+		for _, line := range strings.Split(performanceContent, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && (strings.HasPrefix(line, "-") || strings.HasPrefix(line, "*") || strings.HasPrefix(line, "•")) {
+				content := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(line, "-"), "*"), "•"))
+				review.Performance = append(review.Performance, PerformanceIssue{
+					Type:        "general", // Default type
+					Description: content,
+				})
+			}
+		}
+	}
+
 	return review
 } 

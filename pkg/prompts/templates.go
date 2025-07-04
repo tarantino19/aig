@@ -122,7 +122,7 @@ func GetReviewPrompt(diff string, focusAreas []string, security, performance boo
 	prompt.WriteString(diff)
 	prompt.WriteString("\n```\n\n")
 	
-	prompt.WriteString("Provide a structured review:")
+	prompt.WriteString("Provide a structured review using markdown headers (e.g., ## Summary, ## Issues, ## Suggestions, ## Security Risks, ## Performance Issues):")
 	
 	return prompt.String()
 } 
