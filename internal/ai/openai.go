@@ -98,6 +98,43 @@ func (o *OpenAIProvider) ReviewCode(ctx context.Context, diff string, options Re
 	return review, nil
 }
 
+// GeneratePRDescription generates a PR description from branch analysis
+func (o *OpenAIProvider) GeneratePRDescription(ctx context.Context, analysis PRAnalysis) (*PRDescriptionAI, error) {
+	// Convert ai.Commit to prompts.Commit
+	promptCommits := make([]prompts.Commit, len(analysis.Commits))
+	for i, c := range analysis.Commits {
+		promptCommits[i] = prompts.Commit{
+			Hash:    c.Hash,
+			Author:  c.Author,
+			Date:    c.Date,
+			Message: c.Message,
+		}
+	}
+	
+	prompt := prompts.GetPRDescriptionPrompt(
+		analysis.CurrentBranch,
+		analysis.TargetBranch,
+		analysis.Diff,
+		promptCommits,
+		analysis.IssueNumbers,
+		analysis.Platform,
+	)
+	
+	response, err := o.generateWithRetry(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PR description: %w", err)
+	}
+	
+	// Try to parse as JSON first
+	var prDesc PRDescriptionAI
+	if err := json.Unmarshal([]byte(response), &prDesc); err != nil {
+		// Fallback to text parsing if JSON fails
+		return parsePRDescriptionFromText(response), nil
+	}
+	
+	return &prDesc, nil
+}
+
 // generateWithRetry implements exponential backoff retry logic for rate limiting
 func (o *OpenAIProvider) generateWithRetry(ctx context.Context, prompt string) (string, error) {
 	req := openai.ChatCompletionRequest{

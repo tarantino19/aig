@@ -158,4 +158,178 @@ func ShowReview(review *ai.Review) {
 			}
 		}
 	}
-} 
+}
+
+// ShowPRDescription displays a formatted PR description
+func ShowPRDescription(pr *PRDescription, platform string) {
+	fmt.Println(headerStyle.Render("🚀 Generated PR/MR Description"))
+	
+	// Title
+	fmt.Println(titleStyle.Render("Title:"))
+	fmt.Println(boxStyle.Render(pr.Title))
+	
+	// Summary
+	if pr.Summary != "" {
+		fmt.Println(titleStyle.Render("Summary:"))
+		fmt.Println(boxStyle.Render(pr.Summary))
+	}
+	
+	// Changes
+	if len(pr.Changes) > 0 {
+		fmt.Println(titleStyle.Render("Changes:"))
+		changesList := FormatList(pr.Changes)
+		fmt.Println(boxStyle.Render(changesList))
+	}
+	
+	// Issue Links
+	if len(pr.IssueLinks) > 0 {
+		fmt.Println(titleStyle.Render("Related Issues:"))
+		issuesList := FormatList(pr.IssueLinks)
+		fmt.Println(boxStyle.Render(issuesList))
+	}
+	
+	// Testing Notes
+	if pr.TestingNotes != "" {
+		fmt.Println(titleStyle.Render("Testing:"))
+		fmt.Println(boxStyle.Render(pr.TestingNotes))
+	}
+	
+	// Checklist
+	if len(pr.Checklist) > 0 {
+		fmt.Println(titleStyle.Render("Checklist:"))
+		checklistText := FormatChecklist(pr.Checklist, platform)
+		fmt.Println(boxStyle.Render(checklistText))
+	}
+	
+	// Breaking Changes
+	if len(pr.BreakingChanges) > 0 {
+		fmt.Println(errorStyle.Render("⚠️  Breaking Changes:"))
+		breakingList := FormatList(pr.BreakingChanges)
+		fmt.Println(boxStyle.Render(breakingList))
+	}
+	
+	// Screenshots reminder
+	if pr.Screenshots {
+		fmt.Println(warningStyle.Render("📸 Don't forget to add screenshots of UI changes!"))
+	}
+	
+	// Platform-specific formatting
+	fmt.Println(mutedStyle.Render(fmt.Sprintf("\n📋 Formatted for %s", strings.Title(platform))))
+	
+	// Full markdown output
+	fmt.Println(titleStyle.Render("Markdown Output:"))
+	markdown := FormatPRMarkdown(pr, platform)
+	fmt.Println(codeBlockStyle.Render(markdown))
+}
+
+// FormatChecklist formats checklist items for display
+func FormatChecklist(items []ChecklistItem, platform string) string {
+	var formatted []string
+	
+	// Different platforms use different checkbox syntax
+	var checkboxEmpty, checkboxChecked string
+	switch platform {
+	case "gitlab":
+		checkboxEmpty = "- [ ]"
+		checkboxChecked = "- [x]"
+	case "bitbucket":
+		checkboxEmpty = "- [ ]"
+		checkboxChecked = "- [x]"
+	default: // github
+		checkboxEmpty = "- [ ]"
+		checkboxChecked = "- [x]"
+	}
+	
+	for _, item := range items {
+		if item.Checked {
+			formatted = append(formatted, fmt.Sprintf("  %s %s", checkboxChecked, item.Text))
+		} else {
+			formatted = append(formatted, fmt.Sprintf("  %s %s", checkboxEmpty, item.Text))
+		}
+	}
+	
+	return strings.Join(formatted, "\n")
+}
+
+// FormatPRMarkdown generates the complete markdown for the PR description
+func FormatPRMarkdown(pr *PRDescription, platform string) string {
+	var markdown strings.Builder
+	
+	// Title is handled separately in PR creation
+	
+	// Summary
+	if pr.Summary != "" {
+		markdown.WriteString("## Summary\n\n")
+		markdown.WriteString(pr.Summary)
+		markdown.WriteString("\n\n")
+	}
+	
+	// Changes
+	if len(pr.Changes) > 0 {
+		markdown.WriteString("## Changes\n\n")
+		for _, change := range pr.Changes {
+			markdown.WriteString(fmt.Sprintf("- %s\n", change))
+		}
+		markdown.WriteString("\n")
+	}
+	
+	// Testing
+	if pr.TestingNotes != "" {
+		markdown.WriteString("## Testing\n\n")
+		markdown.WriteString(pr.TestingNotes)
+		markdown.WriteString("\n\n")
+	}
+	
+	// Checklist
+	if len(pr.Checklist) > 0 {
+		markdown.WriteString("## Checklist\n\n")
+		for _, item := range pr.Checklist {
+			checkbox := "[ ]"
+			if item.Checked {
+				checkbox = "[x]"
+			}
+			markdown.WriteString(fmt.Sprintf("- %s %s\n", checkbox, item.Text))
+		}
+		markdown.WriteString("\n")
+	}
+	
+	// Breaking Changes
+	if len(pr.BreakingChanges) > 0 {
+		markdown.WriteString("## ⚠️ Breaking Changes\n\n")
+		for _, breaking := range pr.BreakingChanges {
+			markdown.WriteString(fmt.Sprintf("- %s\n", breaking))
+		}
+		markdown.WriteString("\n")
+	}
+	
+	// Issue Links (at the end for auto-linking)
+	if len(pr.IssueLinks) > 0 {
+		markdown.WriteString("## Related Issues\n\n")
+		for _, link := range pr.IssueLinks {
+			markdown.WriteString(fmt.Sprintf("%s\n", link))
+		}
+	}
+	
+	return strings.TrimSpace(markdown.String())
+}
+
+// PRDescription represents a generated PR description
+type PRDescription struct {
+	Title           string
+	Summary         string
+	Changes         []string
+	IssueLinks      []string
+	TestingNotes    string
+	Checklist       []ChecklistItem
+	BreakingChanges []string
+	Screenshots     bool
+	Platform        string
+}
+
+// ChecklistItem represents a checklist item in the PR
+type ChecklistItem struct {
+	Text    string
+	Checked bool
+}
+
+ 

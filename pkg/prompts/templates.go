@@ -125,4 +125,76 @@ func GetReviewPrompt(diff string, focusAreas []string, security, performance boo
 	prompt.WriteString("Provide a structured review using markdown headers (e.g., ## Summary, ## Issues, ## Suggestions, ## Security Risks, ## Performance Issues):")
 	
 	return prompt.String()
+}
+
+// GetPRDescriptionPrompt returns the prompt for generating PR descriptions
+func GetPRDescriptionPrompt(currentBranch, targetBranch, diff string, commits []Commit, issueNumbers []string, platform string) string {
+	var prompt strings.Builder
+	
+	prompt.WriteString("Generate a comprehensive Pull Request description based on the following information.\n\n")
+	
+	prompt.WriteString("Branch Information:\n")
+	prompt.WriteString(fmt.Sprintf("- Current Branch: %s\n", currentBranch))
+	prompt.WriteString(fmt.Sprintf("- Target Branch: %s\n", targetBranch))
+	prompt.WriteString(fmt.Sprintf("- Platform: %s\n", platform))
+	
+	if len(issueNumbers) > 0 {
+		prompt.WriteString(fmt.Sprintf("- Related Issues: %s\n", strings.Join(issueNumbers, ", ")))
+	}
+	
+	prompt.WriteString("\nCommits in this branch:\n")
+	for i, commit := range commits {
+		if i >= 10 { // Limit to first 10 commits for prompt size
+			prompt.WriteString(fmt.Sprintf("... and %d more commits\n", len(commits)-10))
+			break
+		}
+		prompt.WriteString(fmt.Sprintf("- %s: %s\n", commit.Hash[:7], commit.Message))
+	}
+	
+	prompt.WriteString("\nGenerate a PR description with the following structure:\n")
+	prompt.WriteString("1. **Title**: Concise, descriptive title (50 chars max)\n")
+	prompt.WriteString("2. **Summary**: Brief overview of what this PR accomplishes\n")
+	prompt.WriteString("3. **Changes**: Bullet points of key changes made\n")
+	prompt.WriteString("4. **Testing**: How the changes should be tested\n")
+	prompt.WriteString("5. **Breaking Changes**: Any breaking changes (if applicable)\n\n")
+	
+	prompt.WriteString("Requirements:\n")
+	prompt.WriteString("- Use clear, professional language\n")
+	prompt.WriteString("- Focus on business value and impact\n")
+	prompt.WriteString("- Include technical details where relevant\n")
+	prompt.WriteString("- Mention any dependencies or requirements\n")
+	
+	switch platform {
+	case "gitlab":
+		prompt.WriteString("- Use GitLab-specific formatting\n")
+		prompt.WriteString("- Use 'Closes #issue' for issue linking\n")
+	case "bitbucket":
+		prompt.WriteString("- Use Bitbucket-specific formatting\n")
+		prompt.WriteString("- Use 'Fixes #issue' for issue linking\n")
+	default: // github
+		prompt.WriteString("- Use GitHub-specific formatting\n")
+		prompt.WriteString("- Use 'Fixes #issue' for issue linking\n")
+	}
+	
+	prompt.WriteString("\nCode changes:\n")
+	prompt.WriteString("```diff\n")
+	// Truncate diff if too long to fit in prompt
+	if len(diff) > 8000 {
+		prompt.WriteString(diff[:8000])
+		prompt.WriteString("\n... (diff truncated for brevity)")
+	} else {
+		prompt.WriteString(diff)
+	}
+	prompt.WriteString("\n```\n\n")
+	
+	prompt.WriteString("Respond with a JSON object containing:\n")
+	prompt.WriteString("{\n")
+	prompt.WriteString("  \"title\": \"PR title\",\n")
+	prompt.WriteString("  \"summary\": \"Brief summary paragraph\",\n")
+	prompt.WriteString("  \"changes\": [\"change 1\", \"change 2\", ...],\n")
+	prompt.WriteString("  \"testing\": \"Testing instructions\",\n")
+	prompt.WriteString("  \"breaking_changes\": [\"breaking change 1\", ...] // empty array if none\n")
+	prompt.WriteString("}\n")
+	
+	return prompt.String()
 } 

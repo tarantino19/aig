@@ -140,6 +140,49 @@ func (g *GeminiProvider) ReviewCode(ctx context.Context, diff string, options Re
 	return review, nil
 }
 
+// GeneratePRDescription generates a PR description from branch analysis
+func (g *GeminiProvider) GeneratePRDescription(ctx context.Context, analysis PRAnalysis) (*PRDescriptionAI, error) {
+	// Convert ai.Commit to prompts.Commit
+	promptCommits := make([]prompts.Commit, len(analysis.Commits))
+	for i, c := range analysis.Commits {
+		promptCommits[i] = prompts.Commit{
+			Hash:    c.Hash,
+			Author:  c.Author,
+			Date:    c.Date,
+			Message: c.Message,
+		}
+	}
+	
+	prompt := prompts.GetPRDescriptionPrompt(
+		analysis.CurrentBranch,
+		analysis.TargetBranch,
+		analysis.Diff,
+		promptCommits,
+		analysis.IssueNumbers,
+		analysis.Platform,
+	)
+	
+	resp, err := g.generateWithRetry(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PR description: %w", err)
+	}
+	
+	if len(resp.Candidates) == 0 {
+		return nil, fmt.Errorf("no response from Gemini")
+	}
+	
+	text := extractTextFromResponse(resp)
+	
+	// Try to parse as JSON first
+	var prDesc PRDescriptionAI
+	if err := json.Unmarshal([]byte(text), &prDesc); err != nil {
+		// Fallback to text parsing if JSON fails
+		return parsePRDescriptionFromText(text), nil
+	}
+	
+	return &prDesc, nil
+}
+
 // generateWithRetry implements exponential backoff retry logic for rate limiting
 func (g *GeminiProvider) generateWithRetry(ctx context.Context, prompt string) (*genai.GenerateContentResponse, error) {
 	maxRetries := 3
@@ -390,4 +433,48 @@ func parseReviewResponse(text string, options ReviewOptions) *Review {
 	}
 
 	return review
+}
+
+func parsePRDescriptionFromText(text string) *PRDescriptionAI {
+	// Simple fallback parsing when JSON fails
+	lines := strings.Split(text, "\n")
+	
+	prDesc := &PRDescriptionAI{
+		Title:           "Generated PR Title",
+		Summary:         "",
+		Changes:         []string{},
+		Testing:         "",
+		BreakingChanges: []string{},
+	}
+	
+	// Extract first non-empty line as title
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			prDesc.Title = line
+			break
+		}
+	}
+	
+	// Use the full text as summary
+	prDesc.Summary = strings.TrimSpace(text)
+	
+	// Simple change detection
+	if strings.Contains(text, "add") || strings.Contains(text, "new") {
+		prDesc.Changes = append(prDesc.Changes, "Added new functionality")
+	}
+	if strings.Contains(text, "fix") || strings.Contains(text, "bug") {
+		prDesc.Changes = append(prDesc.Changes, "Fixed bugs")
+	}
+	if strings.Contains(text, "update") || strings.Contains(text, "modify") {
+		prDesc.Changes = append(prDesc.Changes, "Updated existing features")
+	}
+	
+	if len(prDesc.Changes) == 0 {
+		prDesc.Changes = append(prDesc.Changes, "Made various improvements")
+	}
+	
+	prDesc.Testing = "Please test the changes manually"
+	
+	return prDesc
 } 

@@ -11,6 +11,7 @@
 - 🤖 **AI-Powered Commit Messages**: Generate conventional, descriptive commit messages from staged changes
 - 📊 **Code Reviews**: Get intelligent feedback on your staged changes
 - 📝 **Project Summaries**: Create release notes and changelogs from commit history
+- 🚀 **Smart PR/MR Descriptions**: Generate comprehensive PR descriptions with issue linking and checklists
 - 🎯 **Conventional Commits**: Automatic adherence to conventional commit standards
 - 🔧 **Flexible Configuration**: Support for multiple AI providers (Gemini, OpenAI)
 - 🚀 **Cross-Platform**: Works on Linux, macOS, and Windows

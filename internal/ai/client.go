@@ -16,6 +16,9 @@ type Provider interface {
 	// ReviewCode performs a code review on the given diff
 	ReviewCode(ctx context.Context, diff string, options ReviewOptions) (*Review, error)
 	
+	// GeneratePRDescription generates a PR description from branch analysis
+	GeneratePRDescription(ctx context.Context, analysis PRAnalysis) (*PRDescriptionAI, error)
+	
 	// Close closes the provider connection
 	Close() error
 }
@@ -139,4 +142,25 @@ type PerformanceIssue struct {
 	Description string
 	Impact      string
 	Solution    string
+}
+
+// PRAnalysis contains all the data needed for PR description generation
+type PRAnalysis struct {
+	CurrentBranch string
+	TargetBranch  string
+	Diff          string
+	Commits       []Commit
+	IssueNumbers  []string
+	Platform      string
+	Template      string
+	IsDraft       bool
+}
+
+// PRDescriptionAI represents an AI-generated PR description
+type PRDescriptionAI struct {
+	Title           string   `json:"title"`
+	Summary         string   `json:"summary"`
+	Changes         []string `json:"changes"`
+	Testing         string   `json:"testing"`
+	BreakingChanges []string `json:"breaking_changes"`
 } 
